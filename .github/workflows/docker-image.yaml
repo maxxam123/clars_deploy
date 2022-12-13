@@ -1,0 +1,42 @@
+name: Workflow1
+on:
+  workflow_dispatch:
+    inputs:
+      workflow2_name:
+        description: 'Workflow2 Name for Triggering'
+        required: true
+        default: 'Workflow2'
+jobs:
+  build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - name: test
+          run: |
+            mkdir folder
+            cd folder
+            mkdir folder2
+            cd folder2
+            git clone https://github.com/maxxam123/clars
+            mv clars/folder2/deployment.yaml deployment.yaml
+            mv clars/folder2/service.yaml service.yaml
+            mv clars/folder2/ingress.yaml ingress.yaml
+            rm -rf clars
+            sed -i '19d' deployment.yaml
+            awk -i inplace 'NR==19{print "        image: hennighausen/clars:v${{github.run_number}} "}1' deployment.yaml
+            cd ../..
+        - name: Pushes to another repository
+          uses: cpina/github-action-push-to-another-repository@main
+          env:
+            API_TOKEN_GITHUB: ${{ secrets.GIT_REPO }}
+          with:
+            source-directory: 'folder'
+            destination-github-username: 'maxxam123'
+            destination-repository-name: 'clars'
+            user-email: hennighausenmax@gmail.com
+            target-branch: main
+        - name: Build the Docker image
+          run: |
+            echo ${{ secrets.DOCKERPW }} | docker login -u hennighausen --password-stdin
+            docker image build -t hennighausen/clars:v${{ github.run_number }} .
+            docker push hennighausen/clars:v${{ github.run_number }}
